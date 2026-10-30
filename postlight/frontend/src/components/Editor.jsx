@@ -120,7 +120,7 @@ export default function Editor({ txn, onClose, onSaved }) {
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. YouTube Music, Lunch, Salary"
+                placeholder="e.g. Grab Income, Fuel, Salary, Lunch"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required

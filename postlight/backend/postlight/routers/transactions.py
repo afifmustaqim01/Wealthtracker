@@ -46,6 +46,7 @@ async def create_transaction(
     category: str = Form(...),
     notes: Optional[str] = Form(None),
     transaction_date: Optional[str] = Form(None),
+    date: Optional[str] = Form(None),
     receipt: Optional[UploadFile] = File(None),
     user_id: str = Depends(get_current_user_id)
 ):
@@ -60,15 +61,18 @@ async def create_transaction(
     if receipt and receipt.filename:
         receipt_url = await upload_post_image(receipt, user_id)
 
+    # Accept either transaction_date or date from the frontend
+    chosen_date = transaction_date or date
+
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
-                if transaction_date:
+                if chosen_date:
                     cur.execute("""
                         INSERT INTO public.transactions (user_id, title, amount, type, category, notes, receipt_url, transaction_date)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id, user_id, title, amount, type, category, notes, receipt_url, transaction_date, created_at;
-                    """, (user_id, clean_title, clean_amount, clean_type, clean_cat, clean_notes, receipt_url, transaction_date))
+                    """, (user_id, clean_title, clean_amount, clean_type, clean_cat, clean_notes, receipt_url, chosen_date))
                 else:
                     cur.execute("""
                         INSERT INTO public.transactions (user_id, title, amount, type, category, notes, receipt_url)
@@ -100,6 +104,7 @@ async def update_transaction(
     category: str = Form(...),
     notes: Optional[str] = Form(None),
     transaction_date: Optional[str] = Form(None),
+    date: Optional[str] = Form(None),
     receipt: Optional[UploadFile] = File(None),
     remove_existing_receipt: bool = Form(False),
     user_id: str = Depends(get_current_user_id)
@@ -133,7 +138,10 @@ async def update_transaction(
                     raise HTTPException(status_code=404, detail="Transaction not found or not owned by you")
 
                 current_receipt_url = row[0]
-                effective_date = transaction_date if transaction_date else str(row[1])
+                
+                # Check for transaction_date, then date, then fall back to existing row date
+                input_date = transaction_date or date
+                effective_date = input_date if input_date else str(row[1])
                 updated_receipt_url = current_receipt_url
 
                 if remove_existing_receipt:

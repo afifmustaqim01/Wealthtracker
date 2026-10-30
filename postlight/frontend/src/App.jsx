@@ -87,8 +87,14 @@ export default function App() {
   // Helper to resolve whichever date key the backend returned
   const formatTxnDate = (t) => {
     const rawDate = t.transaction_date || t.date || t.txn_date || t.created_at;
-    if (!rawDate) return '—';
-    return String(rawDate).split('T')[0];
+    if (!rawDate) return '-';
+    const datePart = String(rawDate).split('T')[0].split(' ')[0];
+    const parts = datePart.split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts;
+      return `${day}-${month}-${year}`;
+    }
+    return datePart;
   };
 
   // Calculations

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload } from 'lucide-react';
+import { X } from 'lucide-react';
 import { api } from '../lib/api';
 
 const CATEGORIES = [
@@ -14,11 +14,20 @@ const CATEGORIES = [
   'Other'
 ];
 
+// Helper to get local date (YYYY-MM-DD) instead of UTC
+const getLocalDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function Editor({ txn, onClose, onSaved }) {
   const [type, setType] = useState('expense');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState(null);
@@ -30,13 +39,18 @@ export default function Editor({ txn, onClose, onSaved }) {
       setType(txn.type || 'expense');
       setTitle(txn.title || '');
       setAmount(txn.amount !== undefined && txn.amount !== null ? String(txn.amount) : '');
-      setDate(
-        txn.date
-          ? String(txn.date).split('T')[0].split(' ')[0]
-          : new Date().toISOString().split('T')[0]
-      );
+      
+      const rawDate = txn.transaction_date || txn.date;
+      if (rawDate) {
+        setDate(String(rawDate).split('T')[0].split(' ')[0]);
+      } else {
+        setDate(getLocalDateString());
+      }
+
       setCategory(txn.category || CATEGORIES[0]);
       setNotes(txn.notes || '');
+    } else {
+      setDate(getLocalDateString());
     }
   }, [txn]);
 
@@ -59,7 +73,9 @@ export default function Editor({ txn, onClose, onSaved }) {
       formData.append('type', type);
       formData.append('title', title.trim());
       formData.append('amount', String(amount));
+      // Send both field keys so backend accepts either
       formData.append('date', date);
+      formData.append('transaction_date', date);
       formData.append('category', category);
       formData.append('notes', notes || '');
       if (file) {

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException, status, Response
 from typing import Optional
+from datetime import datetime, timezone
 from postlight.dependencies import get_current_user_id
 from postlight.database import get_db
 from postlight.services.transactions import validate_transaction_input, serialize_transaction
@@ -61,24 +62,18 @@ async def create_transaction(
     if receipt and receipt.filename:
         receipt_url = await upload_post_image(receipt, user_id)
 
-    # Accept either transaction_date or date from the frontend
-    chosen_date = transaction_date or date
+    # Use whatever date field is sent, trimmed to YYYY-MM-DD
+    raw_date = transaction_date or date
+    final_date = raw_date.split('T')[0].split(' ')[0] if raw_date else datetime.now().strftime("%Y-%m-%d")
 
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
-                if chosen_date:
-                    cur.execute("""
-                        INSERT INTO public.transactions (user_id, title, amount, type, category, notes, receipt_url, transaction_date)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id, user_id, title, amount, type, category, notes, receipt_url, transaction_date, created_at;
-                    """, (user_id, clean_title, clean_amount, clean_type, clean_cat, clean_notes, receipt_url, chosen_date))
-                else:
-                    cur.execute("""
-                        INSERT INTO public.transactions (user_id, title, amount, type, category, notes, receipt_url)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id, user_id, title, amount, type, category, notes, receipt_url, transaction_date, created_at;
-                    """, (user_id, clean_title, clean_amount, clean_type, clean_cat, clean_notes, receipt_url))
+                cur.execute("""
+                    INSERT INTO public.transactions (user_id, title, amount, type, category, notes, receipt_url, transaction_date)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id, user_id, title, amount, type, category, notes, receipt_url, transaction_date, created_at;
+                """, (user_id, clean_title, clean_amount, clean_type, clean_cat, clean_notes, receipt_url, final_date))
 
                 new_txn = cur.fetchone()
                 txn_id = str(new_txn[0])
@@ -128,7 +123,6 @@ async def update_transaction(
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
-                # Lock row and check user ownership
                 cur.execute(
                     "SELECT receipt_url, transaction_date FROM public.transactions WHERE id = %s AND user_id = %s FOR UPDATE;",
                     (txn_id, user_id)
@@ -139,9 +133,13 @@ async def update_transaction(
 
                 current_receipt_url = row[0]
                 
-                # Check for transaction_date, then date, then fall back to existing row date
-                input_date = transaction_date or date
-                effective_date = input_date if input_date else str(row[1])
+                # Check incoming date inputs first
+                raw_date = transaction_date or date
+                if raw_date and raw_date.strip():
+                    effective_date = raw_date.strip().split('T')[0].split(' ')[0]
+                else:
+                    effective_date = str(row[1]).split('T')[0].split(' ')[0]
+
                 updated_receipt_url = current_receipt_url
 
                 if remove_existing_receipt:
@@ -168,7 +166,7 @@ async def update_transaction(
 
                 updated_txn = cur.fetchone()
 
-                # Refresh the AI embedding chunk with updated financial details
+                # Refresh AI embedding
                 index_transaction(conn, txn_id, clean_title, float(clean_amount), clean_type, clean_cat, clean_notes, effective_date)
 
             conn.commit()

@@ -145,11 +145,14 @@ export default function Editor({ txn, onClose, onSaved }) {
               <div className="form-group">
                 <label>Date</label>
                 <input
-                  type="date"
-                  className="form-input"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
+                     type="date"
+                     className="form-input"
+                     value={date}
+                     onChange={(e) => setDate(e.target.value)}
+                     onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                     onFocus={(e) => e.target.showPicker && e.target.showPicker()}
+                     style={{ colorScheme: 'dark', cursor: 'pointer' }}
+                     required
                 />
               </div>
             </div>

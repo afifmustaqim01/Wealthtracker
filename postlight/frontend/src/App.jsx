@@ -86,7 +86,7 @@ export default function App() {
 
   // Helper to resolve whichever date key the backend returned
   const formatTxnDate = (t) => {
-    const rawDate = t.txn_date || t.date || t.created_at;
+    const rawDate = t.transaction_date || t.date || t.txn_date || t.created_at;
     if (!rawDate) return '—';
     return String(rawDate).split('T')[0];
   };

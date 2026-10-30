@@ -29,8 +29,12 @@ export default function Editor({ txn, onClose, onSaved }) {
     if (txn) {
       setType(txn.type || 'expense');
       setTitle(txn.title || '');
-      setAmount(txn.amount || '');
-      setDate(txn.date || new Date().toISOString().split('T')[0]);
+      setAmount(txn.amount !== undefined && txn.amount !== null ? String(txn.amount) : '');
+      setDate(
+        txn.date
+          ? String(txn.date).split('T')[0].split(' ')[0]
+          : new Date().toISOString().split('T')[0]
+      );
       setCategory(txn.category || CATEGORIES[0]);
       setNotes(txn.notes || '');
     }
@@ -53,7 +57,7 @@ export default function Editor({ txn, onClose, onSaved }) {
     try {
       const formData = new FormData();
       formData.append('type', type);
-      formData.append('title', title);
+      formData.append('title', title.trim());
       formData.append('amount', String(amount));
       formData.append('date', date);
       formData.append('category', category);
@@ -145,14 +149,14 @@ export default function Editor({ txn, onClose, onSaved }) {
               <div className="form-group">
                 <label>Date</label>
                 <input
-                     type="date"
-                     className="form-input"
-                     value={date}
-                     onChange={(e) => setDate(e.target.value)}
-                     onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                     onFocus={(e) => e.target.showPicker && e.target.showPicker()}
-                     style={{ colorScheme: 'dark', cursor: 'pointer' }}
-                     required
+                  type="date"
+                  className="form-input"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  onFocus={(e) => e.target.showPicker && e.target.showPicker()}
+                  style={{ colorScheme: 'dark', cursor: 'pointer' }}
+                  required
                 />
               </div>
             </div>
